@@ -1,0 +1,16 @@
+[Unit]
+Description = Barnard Mumble Client
+Requires= network.target sound.target
+BindsTo= docker.service
+After= docker.service
+
+[Service]
+User = barnard
+Group = barnard
+ExecStartPre= /usr/bin/pulseaudio -D
+ExecStartPre= sleep 60
+ExecStart= /usr/bin/screen -UDmS barnard /usr/local/bin/barnard -insecure -password crossfam -server localhost:64738 -username pi
+ExecStop= /usr/bin/screen -S barnard -X stuff "^[[21~"
+
+[Install]
+WantedBy = multi-user.target
