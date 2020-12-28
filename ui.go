@@ -115,9 +115,9 @@ func (b *Barnard) OnUiInitialize(ui *uiterm.Ui) {
 	})
 
 	b.UiStatus = uiterm.Label{
-		Text: " Idle ",
-		Fg:   uiterm.ColorBlack,
-		Bg:   uiterm.ColorWhite,
+		Fg: uiterm.ColorWhite | uiterm.AttrBold,
+		Bg: uiterm.ColorRed,
+		Text: "  Tx  ",
 	}
 	ui.Add(uiViewStatus, &b.UiStatus)
 

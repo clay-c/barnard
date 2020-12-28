@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-
+	"time"
 	"layeh.com/gumble/gumble"
 	"layeh.com/gumble/gumbleopenal"
 	"layeh.com/gumble/gumbleutil"
@@ -30,6 +30,7 @@ func (b *Barnard) start() {
 		os.Exit(1)
 	} else {
 		b.Stream = stream
+		b.Stream.StartSource()
 	}
 }
 
@@ -39,6 +40,8 @@ func (b *Barnard) OnConnect(e *gumble.ConnectEvent) {
 	b.Ui.SetActive(uiViewInput)
 	b.UiTree.Rebuild()
 	b.Ui.Refresh()
+
+	b.ConnectAttempts = 0
 
 	b.UpdateInputStatus(fmt.Sprintf("To: %s", e.Client.Self.Channel.Name))
 	b.AddOutputLine(fmt.Sprintf("Connected to %s", b.Client.Conn.RemoteAddr()))
@@ -57,9 +60,55 @@ func (b *Barnard) OnDisconnect(e *gumble.DisconnectEvent) {
 		b.AddOutputLine("Disconnected")
 	} else {
 		b.AddOutputLine("Disconnected: " + reason)
+		b.AddOutputLine("Trying Reconnect in 5s")
+		b.ReConnect()
 	}
 	b.UiTree.Rebuild()
 	b.Ui.Refresh()
+}
+func (b *Barnard) Connect() {
+        var err error
+        b.ConnectAttempts++
+
+        _, err = gumble.DialWithDialer(new(net.Dialer), b.Address, b.Config, &b.TLSConfig)
+        if err != nil {
+                fmt.Printf("Connection to %s failed (%s), attempting again in 10 seconds...\n", b.Address, err)
+                b.ReConnect()
+        } else {
+                b.OpenStream()
+        }
+}
+
+func (b *Barnard) ReConnect() {
+        if b.Client != nil {
+                b.Client.Disconnect()
+        }
+
+        if b.ConnectAttempts < 100 {
+                go func() {
+                        time.Sleep(5 * time.Second)
+                        b.Connect()
+                }()
+                return
+        } else {
+                fmt.Fprintf(os.Stderr, "Unable to connect, giving up\n")
+                os.Exit(1)
+        }
+}
+
+func (b *Barnard) OpenStream() {
+        // Audio
+        if os.Getenv("ALSOFT_LOGLEVEL") == "" {
+                os.Setenv("ALSOFT_LOGLEVEL", "0")
+        }
+
+        if stream, err := gumbleopenal.New(b.Client); err != nil {
+                fmt.Fprintf(os.Stderr, "Stream open error (%s)\n", err)
+                os.Exit(1)
+        } else {
+                b.Stream = stream
+		b.Stream.StartSource()
+        }
 }
 
 func (b *Barnard) OnTextMessage(e *gumble.TextMessageEvent) {
